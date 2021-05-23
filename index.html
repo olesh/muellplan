@@ -1,0 +1,137 @@
+<html>
+
+<header>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment-with-locales.min.js"></script>
+    <style>
+
+        #paramContainer {
+            margin-bottom: 20px;
+        }
+        
+        #plan {
+            border-collapse: collapse;
+        }
+
+        #plan td {
+            border: 1px solid black;
+            padding: 5px;
+        }
+
+        img.garbageType {
+            height: 20px;
+            margin-right: 5px;
+        }
+    </style>
+</header>
+
+<body>
+    <div id="paramContainer">
+        <select id="streets">
+
+        </select>
+        <br>
+        <input id="generate" type="button" value="Generieren">
+    </div>
+
+
+    <div id="planContainer">
+        <table id="plan">
+        </table>
+    </div>
+
+</body>
+
+<footer>
+    <script language="javascript">
+        function generatePlan(areaId, parties) {
+            var planTable = $("#plan");
+            planTable.empty();
+
+            $.ajax({
+                dataType: "json",
+                url: "https://mymuell.jumomind.com/webservice.php?idx=termins&city_id=42995&area_id=" + areaId + "&ws=3",
+            }).done(function(data) {
+                var groupedData = [];
+                var weekdayCounter = {};
+                
+                // Local helper function
+                var addGroupedData = function(date, garbageTypes, party) {
+                    var dateMoment = moment(new Date(date)).locale("de");
+                    var weekday = dateMoment.day();
+                    weekdayCounter[weekday] = (weekdayCounter[weekday] || 0) + 1;
+                    groupedData.push([dateMoment, garbageTypes, party]);
+                };
+
+                // group data by date
+                var list = data[0]._data;                
+                
+                var lastDate = null;
+                var lastGarbageTypes = [];
+                var curPartyIdx = 0;
+                
+                for (var i = 0; i < list.length; i++) {
+                    var item = list[i];
+                    var curDate = item.cal_date;
+
+                    if (lastDate !== null && curDate !== lastDate) {
+                        addGroupedData(lastDate, lastGarbageTypes, parties[curPartyIdx]);
+                        lastGarbageTypes = [];
+                        curPartyIdx = (curPartyIdx + 1) % parties.length;
+                    } 
+                    lastDate = curDate;
+                    lastGarbageTypes.push(item.cal_garbage_type);
+                }
+                addGroupedData(lastDate, lastGarbageTypes, parties[curPartyIdx]);
+
+                // find "regular" weekday
+                var regularWeekday = 0;
+                var maxWeekdayCount = weekdayCounter[0] || 0;
+                for (var i = 1; i < 7; i++) {
+                    if (weekdayCounter[i] > maxWeekdayCount) {
+                        regularWeekday = i;
+                        maxWeekdayCount = weekdayCounter[i];
+                    }
+                }
+
+                // render table
+                for (var i = 0; i < groupedData.length; i++) {
+                    var dateMoment = groupedData[i][0];
+                    var garbageTypes = groupedData[i][1];
+                    var party = groupedData[i][2];
+                    var weekday = dateMoment.day();
+
+                    var row = "<tr><td>" + dateMoment.format("DD.MM.YY, dd") + (weekday != regularWeekday ? " (!!!) " : "") + "</td><td>";
+                    for (var j = 0; j < garbageTypes.length; j++) {
+                        row += "<img class='garbageType' src='https://mymuell.jumomind.com/webmodul/neumuenster/cfgservice.php?city_id=42995&action=getIcon&garbage_type=" + garbageTypes[j] + "'>";
+                    }
+                    row += "</td><td>" + party + "</td></tr>";
+                    planTable.append(row);
+                };
+            });
+        }
+
+        function initParams() {
+            $.ajax({
+                dataType: "json",
+                url: "https://mymuell.jumomind.com/mmapp/api.php?r=streets&city_id=42995",
+            }).done(function(data) {
+                var streetSelect = $("#streets")
+                for (var i = 0; i < data.length; i++) {
+                    streetSelect.append("<option value='" + data[i].area_id + "'>" + data[i].name);
+                }
+
+                $("#generate").on('click', function() {
+                    generatePlan(streetSelect.val(), ["EG"]);
+                })
+            });
+        }
+
+        $(document).ready(function() {
+            initParams();
+            //generatePlan(["EG", "1OG", "2OG"]);
+        });
+    </script>
+</footer>
+
+ </html>
