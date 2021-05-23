@@ -97,7 +97,7 @@
 
             $.ajax({
                 dataType: "json",
-                url: "https://mymuell.jumomind.com/webservice.php?idx=termins&city_id=42995&area_id=" + areaId + "&ws=3",
+                url: "https://mymuell.jumomind.com/mmapp/loxone/lox.php?r=dates/0&city_id=42995&area_id=" + areaId
             }).done(function(data) {
                 var groupedData = [];
                 var weekdayCounter = {};
@@ -111,16 +111,15 @@
                 };
 
                 // group data by date
-                var list = data[0]._data;                
                 
                 var lastDate = null;
                 var lastGarbageTypes = [];
                 var curPartyIdx = 0;
                 var today = new Date();
 
-                for (var i = 0; i < list.length; i++) {
-                    var item = list[i];
-                    var curDate = item.cal_date;
+                for (var i = 0; i < data.length; i++) {
+                    var item = data[i];
+                    var curDate = item.day;
                     if (new Date(curDate) < today) {
                         continue;
                     }
@@ -131,7 +130,7 @@
                         curPartyIdx = (curPartyIdx + 1) % parties.length;
                     } 
                     lastDate = curDate;
-                    lastGarbageTypes.push(item.cal_garbage_type);
+                    lastGarbageTypes.push(item.trash_name);
                 }
                 addGroupedData(lastDate, lastGarbageTypes, parties[curPartyIdx]);
 
