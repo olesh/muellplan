@@ -1,45 +1,92 @@
 <html>
 
-<header>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment-with-locales.min.js"></script>
-    <style>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-        #paramContainer {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment-with-locales.min.js"></script>   
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment-with-locales.min.js"></script>
+    
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    
+    <style> 
+        @media print {
+            .alert {
+                display: none;
+            }
+
+            #paramsContainer {
+                display: none;
+            }
+        }
+
+        #paramsContainer {
             margin-bottom: 20px;
         }
         
-        #plan {
+        /* #plan {
             border-collapse: collapse;
         }
 
         #plan td {
             border: 1px solid black;
             padding: 5px;
-        }
+        } */
 
         img.garbageType {
             height: 20px;
             margin-right: 5px;
         }
     </style>
-</header>
+
+    <title>Müllplan</title>
+</head>
 
 <body>
-    <div id="paramContainer">
-        <select id="streets">
+    <div class="container">
+        <h1>Müllplan</h1>
 
-        </select>
-        <br>
-        <input id="generate" type="button" value="Generieren">
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <p>Dies ist ein einfaches Tool, um einen einfachen, tabellarischen Müllabfuhrplan für eine bestimmmte Straße in Neumünster zu generieren. Für andere Darstellungen siehe die <a href="https://www.neumuenster.de/verkehr-umwelt/technisches-betriebszentrum/abfallentsorgung/abfallkalender/">offizielle Seite der Stadt Neumünster</a>.</s></p>
+            <p>
+                Bedienung: 
+                <br>
+                <ul>
+                    <li>Straße auswählen</li>
+                    <li>Falls gewünscht: Wenn es ein Mehrparteienhaus ist, die einzelnen Parteien in die Liste eintragen, beginnend mit der Partei, die als nächstes mit dem Mülldienst dran ist.</li>
+                    <li>Auf Generieren klicken :-)</li>
+                    <li>Über die "Druck-Funktion" des Browsers drucken</li>
+                </ul>
+            </p>
+            <button type="button" class="close" data-dismiss="alert">
+                <span >&times;</span>
+            </button>
+        </div>
+
+        <form id="paramsContainer">
+            <div class="form-group">
+                <label for="streets">Straße:</label>
+                <select id="streets" name="streets" class="custom-select">
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Hausparteien:</label>
+                <input type="text" class="form-control party" placeholder="EG">
+                <input type="text" class="form-control party" placeholder="1. OG">
+                <input type="text" class="form-control party" placeholder="">
+                <button id="addParty" type="button" class="btn btn-secondary btn-sm">+</button>
+            </div>
+            <hr>
+            <button id="generate"  type="button" class="btn btn-primary">Generieren</button>
+        </form>
+
+        <div id="planContainer">
+            <table id="plan" class="table">
+            </table>
+        </div>
     </div>
-
-
-    <div id="planContainer">
-        <table id="plan">
-        </table>
-    </div>
-
 </body>
 
 <footer>
@@ -69,10 +116,14 @@
                 var lastDate = null;
                 var lastGarbageTypes = [];
                 var curPartyIdx = 0;
-                
+                var today = new Date();
+
                 for (var i = 0; i < list.length; i++) {
                     var item = list[i];
                     var curDate = item.cal_date;
+                    if (new Date(curDate) < today) {
+                        continue;
+                    }
 
                     if (lastDate !== null && curDate !== lastDate) {
                         addGroupedData(lastDate, lastGarbageTypes, parties[curPartyIdx]);
@@ -105,7 +156,11 @@
                     for (var j = 0; j < garbageTypes.length; j++) {
                         row += "<img class='garbageType' src='https://mymuell.jumomind.com/webmodul/neumuenster/cfgservice.php?city_id=42995&action=getIcon&garbage_type=" + garbageTypes[j] + "'>";
                     }
-                    row += "</td><td>" + party + "</td></tr>";
+                    row += "</td>";
+                    if (party) {
+                        row += "<td>" + party + "</td>";
+                    }
+                    row += "</tr>";
                     planTable.append(row);
                 };
             });
@@ -122,14 +177,24 @@
                 }
 
                 $("#generate").on('click', function() {
-                    generatePlan(streetSelect.val(), ["EG"]);
-                })
+                    var parties = [];
+                    $(".party").each(function (idx, el) {
+                        if (el.value) {
+                            parties.push(el.value);
+                        }
+                    })
+
+                    generatePlan(streetSelect.val(), parties);
+                });
+
+                $("#addParty").on("click", function() {
+                    $($(".party").get(0)).clone().attr("placeholder", "").val("").insertBefore("#addParty");
+                });
             });
         }
 
         $(document).ready(function() {
             initParams();
-            //generatePlan(["EG", "1OG", "2OG"]);
         });
     </script>
 </footer>
